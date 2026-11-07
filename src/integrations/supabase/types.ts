@@ -170,12 +170,14 @@ export type Database = {
           customer_email: string | null
           customer_name: string
           customer_phone: string
+          discount: number
           district: string
           id: string
           note: string | null
           order_number: string
           payment_method: Database["public"]["Enums"]["payment_method"]
           payment_status: Database["public"]["Enums"]["payment_status"]
+          promo_code: string | null
           province: string
           shipping_fee: number
           shipping_method_id: string | null
@@ -193,12 +195,14 @@ export type Database = {
           customer_email?: string | null
           customer_name: string
           customer_phone: string
+          discount?: number
           district: string
           id?: string
           note?: string | null
           order_number: string
           payment_method?: Database["public"]["Enums"]["payment_method"]
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          promo_code?: string | null
           province: string
           shipping_fee?: number
           shipping_method_id?: string | null
@@ -216,12 +220,14 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string
           customer_phone?: string
+          discount?: number
           district?: string
           id?: string
           note?: string | null
           order_number?: string
           payment_method?: Database["public"]["Enums"]["payment_method"]
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          promo_code?: string | null
           province?: string
           shipping_fee?: number
           shipping_method_id?: string | null
