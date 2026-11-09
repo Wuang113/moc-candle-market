@@ -45,7 +45,8 @@ function Checkout() {
     queryKey: ["shipping_methods"],
     queryFn: async () => (await supabase.from("shipping_methods").select("*").eq("active", true).order("fee")).data ?? [],
   });
-  const method = methods.find((m) => m.id === methodId) ?? methods[0];
+  const method =
+    methods.find((m) => m.id === methodId) ?? methods.find((m) => m.name === "Giao hàng tiêu chuẩn") ?? methods[0];
   const totals = calcTotals({
     lines: items.map((i) => ({ unitPrice: parseFloat(i.price.amount), quantity: i.quantity })),
     methodFee: Number(method?.fee ?? 0),
