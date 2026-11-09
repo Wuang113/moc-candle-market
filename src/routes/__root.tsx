@@ -9,9 +9,10 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
-import { Flame, User as UserIcon, ShieldCheck } from "lucide-react";
+import { User as UserIcon, ShieldCheck } from "lucide-react";
 
 import appCss from "../styles.css?url";
+import candleLogo from "@/assets/logo-candle-cup.png";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
@@ -76,7 +77,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -124,7 +125,7 @@ function Header() {
     <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4">
         <Link to="/" className="flex items-center gap-2">
-          <Flame className="h-6 w-6 text-primary" />
+          <img src={candleLogo} alt="" width={40} height={40} className="h-10 w-10 object-contain" />
           <span className="font-display text-xl font-semibold">An Nhiên</span>
         </Link>
         <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex">
