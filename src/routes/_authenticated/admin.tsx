@@ -80,7 +80,7 @@ function Overview() {
       <div className="grid gap-4 md:grid-cols-4">
         <Stat l="Tổng đơn" v={data.totalOrders} />
         <Stat l="Doanh thu đã thu" v={formatVND(data.revenue)} />
-        <Stat l="Chờ xác nhận" v={data.byStatus.pending ?? 0} />
+        <Stat l="Chờ xác nhận" v={data.byStatus['pending'] ?? 0} />
         <Stat l="Khách hàng" v={data.customers} />
       </div>
       <div className="rounded-2xl bg-card p-5 shadow-soft">
