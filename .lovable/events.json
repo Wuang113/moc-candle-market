@@ -1,6 +1,27 @@
 {
   "schema_version": 1,
   "events": {
+    "project.checkout_started": {
+      "event_schema_version": 1,
+      "description": "A visitor proceeds from the cart to the checkout page.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_count"
+        ],
+        "properties": {
+          "item_count": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
     "project.product_added_to_cart": {
       "event_schema_version": 1,
       "description": "A product was successfully added to the shopping cart.",
