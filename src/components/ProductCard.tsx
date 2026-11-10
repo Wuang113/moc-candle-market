@@ -22,7 +22,15 @@ export function ProductCard({ product }: { product: ShopifyProduct }) {
       quantity: 1,
       selectedOptions: variant.selectedOptions,
     });
-    ok ? toast.success("Đã thêm vào giỏ hàng", { description: p.title }) : toast.error("Không thể thêm vào giỏ");
+    if (ok) {
+      window.__lovableEvents?.track?.("project.product_added_to_cart", {
+        product_handle: p.handle,
+        quantity: 1,
+      });
+      toast.success("Đã thêm vào giỏ hàng", { description: p.title });
+    } else {
+      toast.error("Không thể thêm vào giỏ");
+    }
   };
 
   return (
