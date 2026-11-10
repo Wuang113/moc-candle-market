@@ -20,6 +20,20 @@
           }
         }
       }
+    },
+    "project.search_performed": {
+      "event_schema_version": 1,
+      "description": "A visitor submits a product search query; the query text is omitted to avoid collecting entered free text.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {}
+      }
     }
   }
 }
