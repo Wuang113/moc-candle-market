@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "events": {
+    "project.product_viewed": {
+      "event_schema_version": 1,
+      "description": "A customer opened a product detail page.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "product_handle"
+        ],
+        "properties": {
+          "product_handle": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
