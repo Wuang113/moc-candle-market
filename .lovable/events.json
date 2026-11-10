@@ -1,6 +1,31 @@
 {
   "schema_version": 1,
   "events": {
+    "project.product_added_to_cart": {
+      "event_schema_version": 1,
+      "description": "A product was successfully added to the shopping cart.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "product_handle",
+          "quantity"
+        ],
+        "properties": {
+          "product_handle": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
     "project.product_viewed": {
       "event_schema_version": 1,
       "description": "A customer opened a product detail page.",
