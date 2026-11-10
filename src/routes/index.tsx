@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Leaf, Truck, Gift, Search } from "lucide-react";
 import heroImg from "@/assets/hero-candles.jpg";
 import { fetchProducts } from "@/lib/shopify";
@@ -30,6 +30,14 @@ function Index() {
   const [q, setQ] = useState("");
   const [type, setType] = useState<string | null>(null);
   const [sort, setSort] = useState<"default" | "asc" | "desc">("default");
+
+  useEffect(() => {
+    if (!q.trim()) return;
+    const timer = window.setTimeout(() => {
+      window.__lovableEvents?.track?.("project.search_performed");
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [q]);
 
   const types = useMemo(() => Array.from(new Set(products.map((p) => p.node.productType).filter(Boolean))), [products]);
   const shown = useMemo(() => {

@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "events": {
+    "project.checkout_started": {
+      "event_schema_version": 1,
+      "description": "A visitor proceeds from the cart to the checkout page.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_count"
+        ],
+        "properties": {
+          "item_count": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "project.order_placed": {
+      "event_schema_version": 1,
+      "description": "A customer successfully places an order.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_count",
+          "total_amount"
+        ],
+        "properties": {
+          "item_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "total_amount": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "project.product_added_to_cart": {
+      "event_schema_version": 1,
+      "description": "A product was successfully added to the shopping cart.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "product_handle",
+          "quantity"
+        ],
+        "properties": {
+          "product_handle": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "project.product_viewed": {
+      "event_schema_version": 1,
+      "description": "A customer opened a product detail page.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "product_handle"
+        ],
+        "properties": {
+          "product_handle": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "project.search_performed": {
+      "event_schema_version": 1,
+      "description": "A visitor submits a product search query; the query text is omitted to avoid collecting entered free text.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {}
+      }
+    }
+  }
+}

@@ -86,6 +86,10 @@ function Checkout() {
         },
       });
       clearCart();
+      window.__lovableEvents?.track?.("project.order_placed", {
+        item_count: items.reduce((count, item) => count + item.quantity, 0),
+        total_amount: res.total,
+      });
       toast.success(`Đặt hàng thành công: ${res.orderNumber}`);
       navigate({ to: "/tra-cuu", search: { ma: res.orderNumber, sdt: get("phone") } });
     } catch (err) {

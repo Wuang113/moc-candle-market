@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Loader2, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,11 @@ function ProductPage() {
   const [imgIdx, setImgIdx] = useState(0);
   const addItem = useCartStore((s) => s.addItem);
   const isLoading = useCartStore((s) => s.isLoading);
+
+  useEffect(() => {
+    window.__lovableEvents?.track?.("project.product_viewed", { product_handle: handle });
+  }, [handle]);
+
   if (!p) return null;
 
   const variant = p.variants.edges[variantIdx]?.node;
@@ -58,7 +63,15 @@ function ProductPage() {
       quantity: qty,
       selectedOptions: variant.selectedOptions,
     });
-    ok ? toast.success("Đã thêm vào giỏ hàng") : toast.error("Không thể thêm vào giỏ");
+    if (ok) {
+      window.__lovableEvents?.track?.("project.product_added_to_cart", {
+        product_handle: p.handle,
+        quantity: qty,
+      });
+      toast.success("Đã thêm vào giỏ hàng");
+    } else {
+      toast.error("Không thể thêm vào giỏ");
+    }
   };
 
   return (

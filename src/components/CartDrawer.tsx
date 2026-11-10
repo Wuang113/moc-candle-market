@@ -19,6 +19,7 @@ export function CartDrawer() {
   const openShopifyCheckout = () => {
     const url = getCheckoutUrl();
     if (url) {
+      window.__lovableEvents?.track?.("project.checkout_started", { item_count: totalItems });
       window.open(url, "_blank");
       setOpen(false);
     }
@@ -81,7 +82,13 @@ export function CartDrawer() {
                 <span>{formatVND(totalPrice)}</span>
               </div>
               <Button asChild size="lg" className="w-full" disabled={isLoading}>
-                <Link to="/thanh-toan" onClick={() => setOpen(false)}>
+                <Link
+                  to="/thanh-toan"
+                  onClick={() => {
+                    window.__lovableEvents?.track?.("project.checkout_started", { item_count: totalItems });
+                    setOpen(false);
+                  }}
+                >
                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Đặt hàng"}
                 </Link>
               </Button>
