@@ -22,6 +22,32 @@
         }
       }
     },
+    "project.order_placed": {
+      "event_schema_version": 1,
+      "description": "A customer successfully places an order.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_count",
+          "total_amount"
+        ],
+        "properties": {
+          "item_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "total_amount": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    },
     "project.product_added_to_cart": {
       "event_schema_version": 1,
       "description": "A product was successfully added to the shopping cart.",
