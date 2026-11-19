@@ -776,3 +776,162 @@ export const toggleShipperRole = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+ // ================= HỆ THỐNG CHAT THỜI GIAN THỰC (ADMIN & SHIPPER) =================
+
+export const listSupportMessages = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ targetUserId: z.string().uuid().optional() }).parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: roleRows } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const isAdmin = (roleRows ?? []).some((r: any) => r.role === "admin");
+
+    // Admin xem tin nhắn của khách được chọn; Khách hàng chỉ xem tin nhắn của chính mình
+    const customerId = isAdmin ? data.targetUserId : context.userId;
+    if (!customerId) return [];
+
+    const { data: msgs, error } = await (supabaseAdmin as any)
+      .from("messages")
+      .select("*")
+      .eq("channel_type", "support")
+      .eq("customer_user_id", customerId)
+      .order("created_at", { ascending: true })
+      .limit(200);
+
+    if (error) throw new Error(error.message);
+    return (msgs ?? []) as any[];
+  });
+
+export const sendSupportMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      targetUserId: z.string().uuid().optional(),
+      senderName: z.string().trim().min(1).max(100),
+      content: z.string().trim().min(1).max(1000),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: roleRows } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const isAdmin = (roleRows ?? []).some((r: any) => r.role === "admin");
+
+    if (isAdmin && !data.targetUserId) {
+      throw new Error("Vui lòng chọn một khách hàng cụ thể để trả lời");
+    }
+
+    const customerId = isAdmin ? data.targetUserId! : context.userId;
+    const senderRole = isAdmin ? "admin" : "customer";
+
+    const { error } = await (supabaseAdmin as any).from("messages").insert({
+      channel_type: "support",
+      customer_user_id: customerId,
+      sender_id: context.userId,
+      sender_name: data.senderName,
+      sender_role: senderRole,
+      content: data.content,
+    });
+
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const listOrderMessages = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ orderId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: order } = await (supabaseAdmin as any)
+      .from("orders")
+      .select("id, user_id, shipper_id")
+      .eq("id", data.orderId)
+      .single();
+
+    if (!order) throw new Error("Không tìm thấy đơn hàng");
+
+    const { data: roleRows } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const roles = (roleRows ?? []).map((r: any) => String(r.role));
+    const isAdmin = roles.includes("admin");
+    const isAllowed =
+      isAdmin || order.user_id === context.userId || order.shipper_id === context.userId;
+
+    if (!isAllowed) {
+      throw new Error("Bạn không có quyền xem cuộc trò chuyện của đơn hàng này");
+    }
+
+    const { data: msgs, error } = await (supabaseAdmin as any)
+      .from("messages")
+      .select("*")
+      .eq("channel_type", "order")
+      .eq("order_id", data.orderId)
+      .order("created_at", { ascending: true })
+      .limit(200);
+
+    if (error) throw new Error(error.message);
+    return (msgs ?? []) as any[];
+  });
+
+export const sendOrderMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      orderId: z.string().uuid(),
+      senderName: z.string().trim().min(1).max(100),
+      content: z.string().trim().min(1).max(1000),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: order } = await (supabaseAdmin as any)
+      .from("orders")
+      .select("id, user_id, shipper_id")
+      .eq("id", data.orderId)
+      .single();
+
+    if (!order) throw new Error("Không tìm thấy đơn hàng");
+
+    const { data: roleRows } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const roles = (roleRows ?? []).map((r: any) => String(r.role));
+    const isAdmin = roles.includes("admin");
+    const isShipper = roles.includes("shipper");
+
+    const isAllowed =
+      isAdmin || order.user_id === context.userId || order.shipper_id === context.userId;
+    if (!isAllowed) {
+      throw new Error("Bạn không có quyền nhắn tin trong đơn hàng này");
+    }
+
+    const senderRole =
+      order.shipper_id === context.userId || (isShipper && order.user_id !== context.userId)
+        ? "shipper"
+        : isAdmin && order.user_id !== context.userId
+          ? "admin"
+          : "customer";
+
+    const { error } = await (supabaseAdmin as any).from("messages").insert({
+      channel_type: "order",
+      order_id: data.orderId,
+      sender_id: context.userId,
+      sender_name: data.senderName,
+      sender_role: senderRole,
+      content: data.content,
+    });
+
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

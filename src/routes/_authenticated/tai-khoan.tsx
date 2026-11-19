@@ -11,6 +11,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatVND } from "@/lib/shopify";
 import { STATUS_LABEL } from "@/lib/order-logic";
 import { claimFirstAdmin, createProductReview } from "@/lib/orders.functions";
+import { OrderChatBox } from "@/components/ChatBoxes";
+
 
 export const Route = createFileRoute("/_authenticated/tai-khoan")({
   head: () => ({
@@ -169,6 +171,18 @@ function Account() {
                     </Button>
                   </div>
                 </div>
+
+                {/* Khung chat trao đổi trực tiếp với Shipper khi đơn đang đóng gói / đang giao */}
+                {(o.status === "packing" || o.status === "shipping") && (
+                <div className="border-t bg-muted/20 p-4">
+                  <OrderChatBox
+                    orderId={o.id}
+                    orderNumber={o.order_number}
+                    role="customer"
+                    senderName={o.customer_name || user?.email?.split("@")[0] || "Khách hàng"}
+                  />
+                </div>
+              )}
 
                 {/* KHUNG ĐÁNH GIÁ SẢN PHẨM TỰ ĐỘNG HIỆN KHI SHIPPER GIAO XONG ĐƠN */}
                 {isDelivered && items.length > 0 && (

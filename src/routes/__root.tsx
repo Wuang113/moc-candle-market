@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { CartDrawer } from "@/components/CartDrawer";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useCartStore } from "@/stores/cart";
+import { SupportChatWidget } from "@/components/ChatBoxes";
 
 function NotFoundComponent() {
   return (
@@ -200,6 +201,7 @@ function RootComponent() {
           </main>
           <Footer />
         </div>
+        <SupportChatWidget />
         <Toaster position="top-center" richColors />
       </AuthProvider>
     </QueryClientProvider>

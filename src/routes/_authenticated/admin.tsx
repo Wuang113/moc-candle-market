@@ -1,16 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Plus, Pencil, Trash2, Minus, Upload, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Minus, Upload, X, MessageCircle, Send, User } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { formatVND } from "@/lib/shopify";
 import {
   nextStatuses,
@@ -28,6 +29,8 @@ import {
   upsertProduct,
   deleteProduct,
   toggleShipperRole,
+  listSupportMessages,
+  sendSupportMessage,
 } from "@/lib/orders.functions";
 import { EventList } from "@/components/OrderTimeline";
 
@@ -97,16 +100,20 @@ function Admin() {
     <div className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="text-3xl font-semibold">Quản trị cửa hàng</h1>
       <Tabs defaultValue="overview" className="mt-6">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="overview">Tổng quan</TabsTrigger>
           <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
           <TabsTrigger value="customers">Khách hàng</TabsTrigger>
           <TabsTrigger value="products">Sản phẩm & Tồn kho</TabsTrigger>
+          <TabsTrigger value="support" className="gap-1.5">
+            <MessageCircle className="h-4 w-4" /> Tin nhắn khách hàng
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="overview"><Overview /></TabsContent>
         <TabsContent value="orders"><Orders /></TabsContent>
         <TabsContent value="customers"><Customers /></TabsContent>
         <TabsContent value="products"><Products /></TabsContent>
+        <TabsContent value="support"><SupportInbox /></TabsContent>
       </Tabs>
     </div>
   );
@@ -373,7 +380,6 @@ function Products() {
       return;
     }
     try {
-      const { supabase } = await import("@/integrations/supabase/client");
       const ext = file.name.split(".").pop() || "jpg";
       const filePath = `candles/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
@@ -706,6 +712,213 @@ function Products() {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function SupportInbox() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const fetchCustomersFn = useServerFn(listCustomers);
+  const fetchMsgsFn = useServerFn(listSupportMessages);
+  const sendMsgFn = useServerFn(sendSupportMessage);
+
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [search, setSearch] = useState("");
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ["admin-customers"],
+    queryFn: () => fetchCustomersFn(),
+  });
+
+  // Lọc danh sách các tài khoản không phải Admin
+  const clientUsers = customers.filter((c: any) => !(c.roles ?? []).includes("admin"));
+  const filteredUsers = clientUsers.filter((c: any) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      String(c.email ?? "").toLowerCase().includes(q) ||
+      String(c.name ?? "").toLowerCase().includes(q)
+    );
+  });
+
+  const activeUserId = selectedUserId || filteredUsers[0]?.id || "";
+  const activeCustomer = clientUsers.find((c: any) => c.id === activeUserId);
+
+  const { data: messages = [] } = useQuery({
+    queryKey: ["support-chat", activeUserId],
+    queryFn: () => fetchMsgsFn({ data: { targetUserId: activeUserId } }),
+    enabled: Boolean(activeUserId),
+    refetchInterval: 4000,
+  });
+
+  useEffect(() => {
+    if (!activeUserId) return;
+    const channel = supabase
+      .channel(`admin-support-inbox-${activeUserId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["support-chat", activeUserId] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeUserId, qc]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length, activeUserId]);
+
+  async function handleSendReply(e: React.FormEvent) {
+    e.preventDefault();
+    const content = reply.trim();
+    if (!content || !activeUserId) return;
+
+    const adminName =
+      user?.user_metadata?.["full_name"] ||
+      user?.user_metadata?.["name"] ||
+      "Quản trị viên An Nhiên";
+
+    setSending(true);
+    try {
+      await sendMsgFn({
+        data: {
+          targetUserId: activeUserId,
+          senderName: String(adminName),
+          content,
+        },
+      });
+      setReply("");
+      qc.invalidateQueries({ queryKey: ["support-chat", activeUserId] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Không thể gửi phản hồi");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 grid overflow-hidden rounded-2xl border bg-card shadow-soft md:grid-cols-[300px_1fr] h-[560px]">
+      {/* Cột trái: Danh sách khách hàng */}
+      <div className="flex flex-col border-r bg-muted/20">
+        <div className="border-b p-3">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Tìm email hoặc tên khách..."
+            className="h-9 text-xs"
+          />
+        </div>
+        <div className="flex-1 divide-y overflow-y-auto">
+          {filteredUsers.length === 0 && (
+            <p className="p-6 text-center text-xs text-muted-foreground">
+              Không tìm thấy tài khoản khách hàng nào.
+            </p>
+          )}
+          {filteredUsers.map((c: any) => {
+            const isSelected = c.id === activeUserId;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setSelectedUserId(c.id)}
+                className={`flex w-full items-start gap-2.5 p-3.5 text-left transition ${
+                  isSelected ? "bg-primary/10 border-l-4 border-primary" : "hover:bg-muted/50"
+                }`}
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <User className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{c.name || c.email}</p>
+                  <p className="truncate text-xs text-muted-foreground">{c.email}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {c.orderCount} đơn · {formatVND(c.spent)}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Cột phải: Khung hội thoại trực tiếp */}
+      <div className="flex flex-col bg-background">
+        {activeCustomer ? (
+          <>
+            <div className="flex items-center justify-between border-b bg-card px-4 py-3">
+              <div>
+                <p className="font-semibold text-sm">{activeCustomer.name || activeCustomer.email}</p>
+                <p className="text-xs text-muted-foreground">
+                  {activeCustomer.email} · {activeCustomer.orderCount} đơn hàng đã đặt
+                </p>
+              </div>
+              <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                Hỗ trợ trực tuyến
+              </span>
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              {messages.length === 0 && (
+                <p className="py-16 text-center text-xs text-muted-foreground">
+                  Chưa có tin nhắn nào với khách hàng này. Hãy gửi lời chào để bắt đầu hỗ trợ!
+                </p>
+              )}
+              {messages.map((m: any) => {
+                const isAdminMsg = m.sender_role === "admin";
+                return (
+                  <div
+                    key={m.id}
+                    className={`flex flex-col ${isAdminMsg ? "items-end" : "items-start"}`}
+                  >
+                    <span className="mb-1 px-1 text-[11px] text-muted-foreground">
+                      {isAdminMsg ? "Quản trị viên" : m.sender_name} ·{" "}
+                      {new Date(m.created_at).toLocaleTimeString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <div
+                      className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm leading-relaxed ${
+                        isAdminMsg
+                          ? "bg-primary text-primary-foreground rounded-br-sm"
+                          : "bg-secondary text-secondary-foreground rounded-bl-sm"
+                      }`}
+                    >
+                      {m.content}
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={bottomRef} />
+            </div>
+
+            <form onSubmit={handleSendReply} className="flex items-center gap-2 border-t bg-card p-3">
+              <Input
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                placeholder={`Trả lời ${activeCustomer.name || activeCustomer.email}...`}
+                className="flex-1"
+                maxLength={1000}
+              />
+              <Button type="submit" disabled={sending} className="gap-1.5">
+                <Send className="h-4 w-4" /> Gửi phản hồi
+              </Button>
+            </form>
+          </>
+        ) : (
+          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+            Chọn một khách hàng ở danh sách bên trái để xem và trả lời tin nhắn.
+          </div>
+        )}
       </div>
     </div>
   );
