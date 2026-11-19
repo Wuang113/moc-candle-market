@@ -12,10 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as GiaoHangRouteImport } from './routes/giao-hang'
 import { Route as ThanhToanRouteImport } from './routes/thanh-toan'
 import { Route as TraCuuRouteImport } from './routes/tra-cuu'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedKiemThuRouteImport } from './routes/_authenticated/kiem-thu'
 import { Route as AuthenticatedTaiKhoanRouteImport } from './routes/_authenticated/tai-khoan'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ProductHandleRouteImport } from './routes/product.$handle'
 
 const IndexRoute = IndexRouteImport.update({
@@ -30,6 +33,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GiaoHangRoute = GiaoHangRouteImport.update({
+  id: '/giao-hang',
+  path: '/giao-hang',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ThanhToanRoute = ThanhToanRouteImport.update({
@@ -47,10 +55,20 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedKiemThuRoute = AuthenticatedKiemThuRouteImport.update({
+  id: '/kiem-thu',
+  path: '/kiem-thu',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedTaiKhoanRoute = AuthenticatedTaiKhoanRouteImport.update({
   id: '/tai-khoan',
   path: '/tai-khoan',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ProductHandleRoute = ProductHandleRouteImport.update({
   id: '/product/$handle',
@@ -61,19 +79,25 @@ const ProductHandleRoute = ProductHandleRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/giao-hang': typeof GiaoHangRoute
   '/thanh-toan': typeof ThanhToanRoute
   '/tra-cuu': typeof TraCuuRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/kiem-thu': typeof AuthenticatedKiemThuRoute
   '/tai-khoan': typeof AuthenticatedTaiKhoanRoute
+  '/api/health': typeof ApiHealthRoute
   '/product/$handle': typeof ProductHandleRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/giao-hang': typeof GiaoHangRoute
   '/thanh-toan': typeof ThanhToanRoute
   '/tra-cuu': typeof TraCuuRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/kiem-thu': typeof AuthenticatedKiemThuRoute
   '/tai-khoan': typeof AuthenticatedTaiKhoanRoute
+  '/api/health': typeof ApiHealthRoute
   '/product/$handle': typeof ProductHandleRoute
 }
 export interface FileRoutesById {
@@ -81,10 +105,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/giao-hang': typeof GiaoHangRoute
   '/thanh-toan': typeof ThanhToanRoute
   '/tra-cuu': typeof TraCuuRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/kiem-thu': typeof AuthenticatedKiemThuRoute
   '/_authenticated/tai-khoan': typeof AuthenticatedTaiKhoanRoute
+  '/api/health': typeof ApiHealthRoute
   '/product/$handle': typeof ProductHandleRoute
 }
 export interface FileRouteTypes {
@@ -92,29 +119,38 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/giao-hang'
     | '/thanh-toan'
     | '/tra-cuu'
     | '/admin'
+    | '/kiem-thu'
     | '/tai-khoan'
+    | '/api/health'
     | '/product/$handle'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/giao-hang'
     | '/thanh-toan'
     | '/tra-cuu'
     | '/admin'
+    | '/kiem-thu'
     | '/tai-khoan'
+    | '/api/health'
     | '/product/$handle'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/giao-hang'
     | '/thanh-toan'
     | '/tra-cuu'
     | '/_authenticated/admin'
+    | '/_authenticated/kiem-thu'
     | '/_authenticated/tai-khoan'
+    | '/api/health'
     | '/product/$handle'
   fileRoutesById: FileRoutesById
 }
@@ -122,8 +158,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  GiaoHangRoute: typeof GiaoHangRoute
   ThanhToanRoute: typeof ThanhToanRoute
   TraCuuRoute: typeof TraCuuRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   ProductHandleRoute: typeof ProductHandleRoute
 }
 
@@ -150,6 +188,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/giao-hang': {
+      id: '/giao-hang'
+      path: '/giao-hang'
+      fullPath: '/giao-hang'
+      preLoaderRoute: typeof GiaoHangRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/thanh-toan': {
       id: '/thanh-toan'
       path: '/thanh-toan'
@@ -171,12 +216,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/kiem-thu': {
+      id: '/_authenticated/kiem-thu'
+      path: '/kiem-thu'
+      fullPath: '/kiem-thu'
+      preLoaderRoute: typeof AuthenticatedKiemThuRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tai-khoan': {
       id: '/_authenticated/tai-khoan'
       path: '/tai-khoan'
       fullPath: '/tai-khoan'
       preLoaderRoute: typeof AuthenticatedTaiKhoanRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/product/$handle': {
       id: '/product/$handle'
@@ -190,11 +249,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedKiemThuRoute: typeof AuthenticatedKiemThuRoute
   AuthenticatedTaiKhoanRoute: typeof AuthenticatedTaiKhoanRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedKiemThuRoute: AuthenticatedKiemThuRoute,
   AuthenticatedTaiKhoanRoute: AuthenticatedTaiKhoanRoute,
 }
 
@@ -205,8 +266,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  GiaoHangRoute: GiaoHangRoute,
   ThanhToanRoute: ThanhToanRoute,
   TraCuuRoute: TraCuuRoute,
+  ApiHealthRoute: ApiHealthRoute,
   ProductHandleRoute: ProductHandleRoute,
 }
 export const routeTree = rootRouteImport

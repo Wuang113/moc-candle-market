@@ -12,4 +12,15 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    server: {
+      proxy: {
+        "/api/momo": {
+          target: "https://test-payment.momo.vn",
+          changeOrigin: true,
+          rewrite: (path: string) => path.replace(/^\/api\/momo/, ""),
+        },
+      },
+    },
+  },
 });

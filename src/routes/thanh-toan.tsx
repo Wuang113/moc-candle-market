@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCartStore } from "@/stores/cart";
 import { formatVND } from "@/lib/shopify";
 import { calcTotals, PAYMENT_METHOD_LABEL, type PaymentMethod } from "@/lib/order-logic";
-import { placeOrder } from "@/lib/orders.functions";
+import { placeOrder, createMoMoCheckout } from "@/lib/orders.functions";
 import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/thanh-toan")({
@@ -36,6 +36,7 @@ function Checkout() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const place = useServerFn(placeOrder);
+  const momoCheckout = useServerFn(createMoMoCheckout);
   const [busy, setBusy] = useState(false);
   const [methodId, setMethodId] = useState<string>("");
   const [pay, setPay] = useState<PaymentMethod>("cod");
@@ -67,12 +68,14 @@ function Checkout() {
     if (!method) return;
     const f = new FormData(e.currentTarget);
     const get = (k: string) => String(f.get(k) ?? "");
+    const phone = get("phone");
     setBusy(true);
     try {
       const res = await place({
         data: {
+          userId: user?.id ?? null,
           customerName: get("name"),
-          customerPhone: get("phone"),
+          customerPhone: phone,
           customerEmail: get("email") || user?.email || "",
           province: get("province"),
           district: get("district"),
@@ -90,8 +93,23 @@ function Checkout() {
         item_count: items.reduce((count, item) => count + item.quantity, 0),
         total_amount: res.total,
       });
+
+      if (pay === "ewallet") {
+        toast.info("Đang chuyển hướng sang cổng thanh toán MoMo...");
+        const { payUrl } = await momoCheckout({
+          data: {
+            orderNumber: res.orderNumber,
+            amount: res.total,
+            origin: window.location.origin,
+            phone,
+          },
+        });
+        window.location.href = payUrl;
+        return;
+      }
+
       toast.success(`Đặt hàng thành công: ${res.orderNumber}`);
-      navigate({ to: "/tra-cuu", search: { ma: res.orderNumber, sdt: get("phone") } });
+      navigate({ to: "/tra-cuu", search: { ma: res.orderNumber, sdt: phone } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message.slice(0, 200) : "Đặt hàng thất bại");
     } finally {
@@ -139,11 +157,11 @@ function Checkout() {
             {(Object.keys(PAYMENT_METHOD_LABEL) as PaymentMethod[]).map((k) => (
               <label key={k} className="flex cursor-pointer items-center gap-3 rounded-xl border bg-card p-4 has-[:checked]:border-primary">
                 <input type="radio" name="pay" checked={pay === k} onChange={() => setPay(k)} />
-                <span>{PAYMENT_METHOD_LABEL[k]}</span>
+                <span>{k === "ewallet" ? "Ví điện tử MoMo (Quét mã QR)" : PAYMENT_METHOD_LABEL[k]}</span>
               </label>
             ))}
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">Chuyển khoản và ví điện tử đang ở chế độ mô phỏng cho mục đích trình diễn.</p>
+          <p className="mt-2 text-xs text-muted-foreground">Thanh toán MoMo sẽ chuyển sang cổng thanh toán MoMo Sandbox.</p>
         </section>
       </div>
 

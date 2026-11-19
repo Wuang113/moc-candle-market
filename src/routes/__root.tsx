@@ -9,7 +9,7 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
-import { User as UserIcon, ShieldCheck } from "lucide-react";
+import { User as UserIcon, ShieldCheck, Truck } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import candleLogo from "@/assets/logo-candle-cup.png";
@@ -120,7 +120,7 @@ function CartSync() {
 }
 
 function Header() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isShipper } = useAuth();
   return (
     <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4">
@@ -137,6 +137,13 @@ function Header() {
           </Link>
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          {isShipper && (
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/giao-hang">
+                <Truck className="mr-1 h-4 w-4" /> Giao hàng
+              </Link>
+            </Button>
+          )}
           {isAdmin && (
             <Button variant="ghost" size="sm" asChild>
               <Link to="/admin">

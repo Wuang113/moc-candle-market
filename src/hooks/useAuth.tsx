@@ -4,21 +4,60 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 
-type AuthState = { user: User | null; isAdmin: boolean; loading: boolean; refreshRole: () => Promise<void> };
+type AuthState = {
+  user: User | null;
+  isAdmin: boolean;
+  isShipper: boolean;
+  loading: boolean;
+  refreshRole: () => Promise<void>;
+};
 
-const AuthContext = createContext<AuthState>({ user: null, isAdmin: false, loading: true, refreshRole: async () => {} });
+const AuthContext = createContext<AuthState>({
+  user: null,
+  isAdmin: false,
+  isShipper: false,
+  loading: true,
+  refreshRole: async () => {},
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isShipper, setIsShipper] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const queryClient = useQueryClient();
 
   async function loadRole(u: User | null) {
-    if (!u) return setIsAdmin(false);
-    const { data } = await supabase.rpc("has_role", { _user_id: u.id, _role: "admin" });
-    setIsAdmin(Boolean(data));
+    if (!u) {
+      setIsAdmin(false);
+      setIsShipper(false);
+      return;
+    }
+
+    // 1. Kiểm tra danh sách role trực tiếp từ bảng user_roles
+    const { data: roleRows, error } = await (supabase as any)
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", u.id);
+
+    if (!error && Array.isArray(roleRows)) {
+      const roles = roleRows.map((r: any) => String(r.role));
+      const adminFlag = roles.includes("admin");
+      const shipperFlag = roles.includes("shipper") || adminFlag;
+      setIsAdmin(adminFlag);
+      setIsShipper(shipperFlag);
+      return;
+    }
+
+    // 2. Fallback sang RPC has_role nếu bảng user_roles bị giới hạn RLS
+    const { data: rpcAdmin } = await supabase.rpc("has_role", {
+      _user_id: u.id,
+      _role: "admin",
+    });
+    const isAdminVal = Boolean(rpcAdmin);
+    setIsAdmin(isAdminVal);
+    setIsShipper(isAdminVal);
   }
 
   useEffect(() => {
@@ -27,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await loadRole(data.user);
       setLoading(false);
     });
+
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       setUser(session?.user ?? null);
@@ -34,12 +74,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
+
     return () => sub.subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, loading, refreshRole: () => loadRole(user) }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAdmin,
+        isShipper,
+        loading,
+        refreshRole: () => loadRole(user),
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

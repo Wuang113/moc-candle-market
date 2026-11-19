@@ -1,8 +1,9 @@
 /**
- * Lớp kết nối Shopify Storefront API (phiên bản 2026-10).
- * Dùng cho client: tải sản phẩm, tạo giỏ hàng, sinh link thanh toán.
+ * Lớp kết nối dữ liệu Sản phẩm (Ưu tiên lấy từ bảng products của Supabase để Admin thêm/sửa/xóa trực tiếp,
+ * tự động fallback sang Shopify nếu bảng products đang trống).
  */
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const SHOPIFY_API_VERSION = "2026-10";
 export const SHOPIFY_STORE_PERMANENT_DOMAIN =
@@ -11,32 +12,91 @@ export const SHOPIFY_STOREFRONT_URL = `https://${SHOPIFY_STORE_PERMANENT_DOMAIN}
 
 const SHOPIFY_STOREFRONT_TOKEN = "d2a78613e910965b703d4b989328138c";
 
-export interface ShopifyProduct {
+export interface ShopifyImageEdge {
+  node: { url: string; altText: string | null };
+}
+
+export interface ShopifySelectedOption {
+  name: string;
+  value: string;
+}
+
+export interface ShopifyVariantEdge {
   node: {
     id: string;
     title: string;
-    description: string;
-    handle: string;
-    productType: string;
-    tags: string[];
-    priceRange: {
-      minVariantPrice: { amount: string; currencyCode: string };
-    };
-    images: {
-      edges: Array<{ node: { url: string; altText: string | null } }>;
-    };
-    variants: {
-      edges: Array<{
-        node: {
-          id: string;
-          title: string;
-          price: { amount: string; currencyCode: string };
-          availableForSale: boolean;
-          selectedOptions: Array<{ name: string; value: string }>;
-        };
-      }>;
-    };
-    options: Array<{ name: string; values: string[] }>;
+    price: { amount: string; currencyCode: string };
+    availableForSale: boolean;
+    selectedOptions: ShopifySelectedOption[];
+  };
+}
+
+export interface ShopifyOption {
+  name: string;
+  values: string[];
+}
+
+export interface ShopifyProductNode {
+  id: string;
+  title: string;
+  description: string;
+  handle: string;
+  productType: string;
+  tags: string[];
+  priceRange: {
+    minVariantPrice: { amount: string; currencyCode: string };
+  };
+  images: {
+    edges: ShopifyImageEdge[];
+  };
+  variants: {
+    edges: ShopifyVariantEdge[];
+  };
+  options: ShopifyOption[];
+}
+
+export interface ShopifyProduct {
+  node: ShopifyProductNode;
+}
+
+/** Chuyển đổi 1 dòng trong bảng products của Supabase sang cấu trúc chuẩn của giao diện */
+function mapDbProductToShopify(p: any): ShopifyProduct {
+  const priceStr = String(p.price ?? 0);
+  const variantTitle = p.variant_title || "Tiêu chuẩn (200g)";
+  const available = Boolean(p.active && Number(p.stock) > 0);
+  const imgUrl =
+    p.image_url ||
+    "https://images.unsplash.com/photo-1603006905003-be475563bc59?auto=format&fit=crop&w=800&q=80";
+
+  return {
+    node: {
+      id: p.id,
+      title: p.title,
+      description: p.description || "",
+      handle: p.handle,
+      productType: p.category || "Nến thơm",
+      tags: [`Tồn kho: ${p.stock}`],
+      priceRange: {
+        minVariantPrice: { amount: priceStr, currencyCode: "VND" },
+      },
+      images: {
+        edges: [{ node: { url: imgUrl, altText: p.title } }],
+      },
+      variants: {
+        edges: [
+          {
+            node: {
+              id: `supabase-variant-${p.id}`,
+              title: `${variantTitle} (Còn ${p.stock} SP)`,
+              price: { amount: priceStr, currencyCode: "VND" },
+              availableForSale: available,
+              selectedOptions: [{ name: "Phân loại", value: variantTitle }],
+            },
+          },
+        ],
+      },
+      options: [{ name: "Phân loại", values: [variantTitle] }],
+    },
   };
 }
 
@@ -170,17 +230,54 @@ export const PRODUCT_BY_HANDLE_QUERY = `
   }
 `;
 
-export async function fetchProducts(first = 12, query?: string): Promise<ShopifyProduct[]> {
+export async function fetchProducts(first = 24, query?: string) {
+  try {
+    let q = (supabase as any)
+      .from("products")
+      .select("*")
+      .eq("active", true)
+      .order("created_at", { ascending: false })
+      .limit(first);
+
+    if (query && query.trim()) {
+      const clean = query.replace(/^title:\*|\*$/g, "").trim();
+      if (clean) {
+        q = q.ilike("title", `%${clean}%`);
+      }
+    }
+
+    const { data: dbProducts, error } = await q;
+    if (!error && dbProducts && dbProducts.length > 0) {
+      return dbProducts.map(mapDbProductToShopify) as ShopifyProduct[];
+    }
+  } catch {
+    // Nếu chưa tạo bảng products thì fallback xuống Shopify
+  }
+
   const data = await storefrontApiRequest(STOREFRONT_QUERY, { first, query: query ?? null });
-  return data?.data?.products?.edges ?? [];
+  return (data?.data?.products?.edges ?? []) as ShopifyProduct[];
 }
 
-export async function fetchProductByHandle(handle: string): Promise<ShopifyProduct["node"] | null> {
+export async function fetchProductByHandle(handle: string) {
+  try {
+    const { data: p, error } = await (supabase as any)
+      .from("products")
+      .select("*")
+      .eq("handle", handle)
+      .maybeSingle();
+
+    if (!error && p) {
+      return mapDbProductToShopify(p).node;
+    }
+  } catch {
+    // Fallback sang Shopify
+  }
+
   const data = await storefrontApiRequest(PRODUCT_BY_HANDLE_QUERY, { handle });
-  return data?.data?.product ?? null;
+  return (data?.data?.product ?? null) as ShopifyProductNode | null;
 }
 
-// ================= GIỎ HÀNG SHOPIFY =================
+// ================= GIỎ HÀNG (HỖ TRỢ CẢ SUPABASE VÀ SHOPIFY) =================
 
 const CART_QUERY = `
   query cart($id: ID!) {
@@ -252,10 +349,19 @@ function isCartNotFoundError(userErrors: UserError[]): boolean {
   );
 }
 
-export async function createShopifyCart(item: {
-  quantity: number;
-  variantId: string;
-}): Promise<{ cartId: string; checkoutUrl: string; lineId: string } | null> {
+function isLocalVariant(id: string) {
+  return id.startsWith("supabase-variant-") || !id.startsWith("gid://");
+}
+
+export async function createShopifyCart(item: { quantity: number; variantId: string }) {
+  if (isLocalVariant(item.variantId)) {
+    return {
+      cartId: `local-cart-${Date.now()}`,
+      checkoutUrl: "/thanh-toan",
+      lineId: `local-line-${item.variantId}`,
+    };
+  }
+
   const data = await storefrontApiRequest(CART_CREATE_MUTATION, {
     input: { lines: [{ quantity: item.quantity, merchandiseId: item.variantId }] },
   });
@@ -277,7 +383,11 @@ export async function createShopifyCart(item: {
 export async function addLineToShopifyCart(
   cartId: string,
   item: { quantity: number; variantId: string },
-): Promise<{ success: boolean; lineId?: string; cartNotFound?: boolean }> {
+) {
+  if (cartId.startsWith("local-cart-") || isLocalVariant(item.variantId)) {
+    return { success: true, lineId: `local-line-${item.variantId}`, cartNotFound: false };
+  }
+
   const data = await storefrontApiRequest(CART_LINES_ADD_MUTATION, {
     cartId,
     lines: [{ quantity: item.quantity, merchandiseId: item.variantId }],
@@ -301,7 +411,11 @@ export async function updateShopifyCartLine(
   cartId: string,
   lineId: string,
   quantity: number,
-): Promise<{ success: boolean; cartNotFound?: boolean }> {
+) {
+  if (cartId.startsWith("local-cart-") || lineId.startsWith("local-line-")) {
+    return { success: true, cartNotFound: false };
+  }
+
   const data = await storefrontApiRequest(CART_LINES_UPDATE_MUTATION, {
     cartId,
     lines: [{ id: lineId, quantity }],
@@ -319,7 +433,11 @@ export async function updateShopifyCartLine(
 export async function removeLineFromShopifyCart(
   cartId: string,
   lineId: string,
-): Promise<{ success: boolean; cartNotFound?: boolean }> {
+) {
+  if (cartId.startsWith("local-cart-") || lineId.startsWith("local-line-")) {
+    return { success: true, cartNotFound: false };
+  }
+
   const data = await storefrontApiRequest(CART_LINES_REMOVE_MUTATION, {
     cartId,
     lineIds: [lineId],
