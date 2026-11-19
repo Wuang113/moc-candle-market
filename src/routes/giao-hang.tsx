@@ -24,7 +24,6 @@ import { formatVND } from "@/lib/shopify";
 import { PAYMENT_METHOD_LABEL, STATUS_LABEL } from "@/lib/order-logic";
 import { listShipperOrders, shipperHandleOrder } from "@/lib/orders.functions";
 import { useAuth } from "@/hooks/useAuth";
-import { OrderChatBox } from "@/components/ChatBoxes";
 
 export const Route = createFileRoute("/giao-hang")({
   head: () => ({
@@ -511,16 +510,6 @@ function ShipperPortal() {
                         <CheckCircle2 className="h-4 w-4" />
                         {busyId === o.id ? "Đang xử lý..." : "Xác nhận Đã Giao & Thu Tiền"}
                       </Button>
-                    </div>
-
-                    {/* Khung chat trao đổi trực tiếp giữa Shipper và người đặt đơn */}
-                    <div className="mt-4 border-t pt-3" onClick={(e) => e.stopPropagation()}>
-                      <OrderChatBox
-                        orderId={o.id}
-                        orderNumber={o.order_number}
-                        role="shipper"
-                        senderName={o.shipper_name || shipperName || user?.email?.split("@")[0] || "Shipper"}
-                      />
                     </div>
                   </div>
                 );
