@@ -57,7 +57,7 @@ function Index() {
           <div>
             <p className="text-sm uppercase tracking-[0.2em] text-primary">Thủ công tại Việt Nam</p>
             <h1 className="mt-4 text-4xl leading-tight font-semibold md:text-6xl">
-              Thắp lên <em className="text-primary">sự Mộc</em> trong từng góc nhà
+              Thắp lên <em className="text-primary">sự An nhiên</em> trong từng góc nhà
             </h1>
             <p className="mt-5 max-w-md text-lg text-muted-foreground">
               Nến thơm từ sáp đậu nành tự nhiên, tinh dầu thuần khiết, đựng trong gốm và thủy tinh tái sử dụng.
