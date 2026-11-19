@@ -10,10 +10,10 @@ import { useAuth } from "@/hooks/useAuth";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Đăng nhập — Nến Hương An Nhiên" },
+      { title: "Đăng nhập — Mộc" },
       { name: "description", content: "Đăng nhập hoặc tạo tài khoản để theo dõi đơn hàng." },
-      { property: "og:title", content: "Đăng nhập — Nến Hương An Nhiên" },
-      { property: "og:description", content: "Tài khoản khách hàng An Nhiên." },
+      { property: "og:title", content: "Đăng nhập — Nến Hương Mộc" },
+      { property: "og:description", content: "Tài khoản khách hàng Mộc." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

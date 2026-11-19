@@ -1,4 +1,4 @@
-# Roadmap — Hệ thống TMĐT "Nến Hương An Nhiên"
+# Roadmap — Hệ thống TMĐT "Nến Hương Mộc"
 
 ## Nhiệm vụ
 - [x] Chọn kiến trúc, kích hoạt Lovable Cloud + Shopify

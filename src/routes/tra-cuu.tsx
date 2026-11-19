@@ -21,9 +21,9 @@ export const Route = createFileRoute("/tra-cuu")({
   }),
   head: () => ({
     meta: [
-      { title: "Tra cứu đơn hàng — Nến Hương An Nhiên" },
+      { title: "Tra cứu đơn hàng — Nến Hương Mộc" },
       { name: "description", content: "Theo dõi trạng thái đơn hàng và vận chuyển bằng mã đơn và số điện thoại." },
-      { property: "og:title", content: "Tra cứu đơn hàng — Nến Hương An Nhiên" },
+      { property: "og:title", content: "Tra cứu đơn hàng — Nến Hương Mộc" },
       { property: "og:description", content: "Theo dõi đơn hàng nến thơm của bạn." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -131,7 +131,7 @@ function Lookup() {
                   </div>
                   <div>
                     <p className="font-semibold text-base">Cổng thanh toán MoMo</p>
-                    <p className="text-xs text-pink-100">Nến Hương An Nhiên — Thanh toán an toàn</p>
+                    <p className="text-xs text-pink-100">Nến Hương Mộc — Thanh toán an toàn</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -157,7 +157,7 @@ function Lookup() {
                 <div className="space-y-3 text-sm text-gray-700">
                   <div className="flex justify-between border-b pb-2">
                     <span className="text-gray-500">Nhà cung cấp:</span>
-                    <span className="font-semibold text-gray-900">Nến Hương An Nhiên</span>
+                    <span className="font-semibold text-gray-900">Nến Hương Mộc</span>
                   </div>
                   <div className="flex justify-between border-b pb-2">
                     <span className="text-gray-500">Mã đơn hàng:</span>

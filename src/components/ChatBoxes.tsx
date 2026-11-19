@@ -258,7 +258,7 @@ export function SupportChatWidget() {
                 <div>
                   <p className="text-sm font-semibold leading-tight">
                     {effectiveTab === "support"
-                      ? "Hỗ trợ trực tuyến An Nhiên"
+                      ? "Hỗ trợ trực tuyến Mộc"
                       : "Trao đổi giao nhận đơn hàng"}
                   </p>
                   <p className="text-[11px] opacity-85">

@@ -23,7 +23,7 @@ export const Route = createFileRoute("/product/$handle")({
     return { title: p.title, description: p.description, image: p.images.edges[0]?.node.url };
   },
   head: ({ loaderData }) => {
-    const title = loaderData ? `${loaderData.title} — Nến Hương An Nhiên` : "Sản phẩm — Nến Hương An Nhiên";
+    const title = loaderData ? `${loaderData.title} — Nến Hương Mộc` : "Sản phẩm — Nến Hương Mộc";
     const desc = loaderData?.description?.slice(0, 155) ?? "Nến thơm thủ công";
     const meta = [
       { title },

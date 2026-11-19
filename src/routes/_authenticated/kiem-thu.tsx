@@ -30,7 +30,7 @@ import {
 export const Route = (createFileRoute as any)("/_authenticated/kiem-thu")({
   head: () => ({
     meta: [
-      { title: "Kiểm thử 3 giai đoạn — Nến Hương An Nhiên" },
+      { title: "Kiểm thử 3 giai đoạn — Nến Hương Mộc" },
       { name: "robots", content: "noindex" },
     ],
   }),

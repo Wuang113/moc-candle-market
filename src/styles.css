@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system — Nến Hương An Nhiên
+ * Design system — Nến Hương Mộc
  * Phong cách: ấm áp, thủ công, màu đất (terracotta / kem / xô thơm)
  * Mọi màu dùng oklch. Thêm màu mới: khai báo ở :root/.dark rồi map trong @theme inline.
  */

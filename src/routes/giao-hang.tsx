@@ -28,7 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 export const Route = createFileRoute("/giao-hang")({
   head: () => ({
     meta: [
-      { title: "Cổng Người Giao Hàng — Nến Hương An Nhiên" },
+      { title: "Cổng Người Giao Hàng — Nến Hương Mộc" },
       { name: "description", content: "Nhận đơn, xem bản đồ Google Maps và cập nhật hành trình giao hàng." },
     ],
   }),
@@ -38,7 +38,7 @@ export const Route = createFileRoute("/giao-hang")({
 const WAREHOUSE_ADDRESS = "Quận 1, Thành phố Hồ Chí Minh";
 
 const MOVE_STAGES = [
-  { step: 0, label: "Tại kho An Nhiên", note: "Shipper đã lấy hàng tại kho Nến Hương An Nhiên" },
+  { step: 0, label: "Tại kho Mộc", note: "Shipper đã lấy hàng tại kho Nến Hương Mộc" },
   { step: 1, label: "Đang đi trên đường", note: "Shipper đang di chuyển trên tuyến đường chính hướng về khu vực giao" },
   { step: 2, label: "Sắp tới nơi (cách 500m)", note: "Shipper đã vào khu vực Phường/Xã của khách, chuẩn bị gọi điện" },
   { step: 3, label: "Đã tới điểm giao", note: "Shipper đã tới trước địa chỉ nhà khách hàng" },

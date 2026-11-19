@@ -37,9 +37,9 @@ import { EventList } from "@/components/OrderTimeline";
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
-      { title: "Quản trị — Nến Hương An Nhiên" },
+      { title: "Quản trị — Nến Hương Mộc" },
       { name: "description", content: "Quản lý đơn hàng, khách hàng, sản phẩm và vận chuyển." },
-      { property: "og:title", content: "Quản trị — Nến Hương An Nhiên" },
+      { property: "og:title", content: "Quản trị — Nến Hương Mộc" },
       { property: "og:description", content: "Trang quản trị cửa hàng." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -785,7 +785,7 @@ function SupportInbox() {
     const adminName =
       user?.user_metadata?.["full_name"] ||
       user?.user_metadata?.["name"] ||
-      "Quản trị viên An Nhiên";
+      "Quản trị viên Mộc";
 
     setSending(true);
     try {

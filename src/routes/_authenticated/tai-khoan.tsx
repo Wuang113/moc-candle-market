@@ -17,9 +17,9 @@ import { claimFirstAdmin, createProductReview } from "@/lib/orders.functions";
 export const Route = createFileRoute("/_authenticated/tai-khoan")({
   head: () => ({
     meta: [
-      { title: "Tài khoản của tôi — Nến Hương An Nhiên" },
+      { title: "Tài khoản của tôi — Nến Hương Mộc" },
       { name: "description", content: "Xem lịch sử đơn hàng và đánh giá sản phẩm đã nhận." },
-      { property: "og:title", content: "Tài khoản — Nến Hương An Nhiên" },
+      { property: "og:title", content: "Tài khoản — Nến Hương Mộc" },
       { property: "og:description", content: "Lịch sử đơn hàng." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

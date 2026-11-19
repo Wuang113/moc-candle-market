@@ -13,9 +13,9 @@ const productsQuery = queryOptions({ queryKey: ["products"], queryFn: () => fetc
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Nến Hương An Nhiên — Nến thơm đậu nành thủ công" },
+      { title: "Nến Hương Mộc — Nến thơm đậu nành thủ công" },
       { name: "description", content: "Mua nến thơm đậu nành, nến gốm, hộp quà nến hương thủ công. Giao hàng toàn quốc, miễn phí từ 500.000đ." },
-      { property: "og:title", content: "Nến Hương An Nhiên — Nến thơm thủ công" },
+      { property: "og:title", content: "Nến Hương Mộc — Nến thơm thủ công" },
       { property: "og:description", content: "Nến thơm đậu nành thủ công Việt Nam, giao toàn quốc." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -57,7 +57,7 @@ function Index() {
           <div>
             <p className="text-sm uppercase tracking-[0.2em] text-primary">Thủ công tại Việt Nam</p>
             <h1 className="mt-4 text-4xl leading-tight font-semibold md:text-6xl">
-              Thắp lên <em className="text-primary">sự an nhiên</em> trong từng góc nhà
+              Thắp lên <em className="text-primary">sự Mộc</em> trong từng góc nhà
             </h1>
             <p className="mt-5 max-w-md text-lg text-muted-foreground">
               Nến thơm từ sáp đậu nành tự nhiên, tinh dầu thuần khiết, đựng trong gốm và thủy tinh tái sử dụng.
@@ -66,7 +66,7 @@ function Index() {
               <a href="#san-pham">Khám phá bộ sưu tập</a>
             </Button>
           </div>
-          <img src={heroImg} alt="Nến thơm thủ công An Nhiên" width={1024} height={1024} className="rounded-3xl shadow-warm" />
+          <img src={heroImg} alt="Nến thơm thủ công Mộc" width={1024} height={1024} className="rounded-3xl shadow-warm" />
         </div>
       </section>
 

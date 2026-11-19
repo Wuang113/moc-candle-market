@@ -437,7 +437,7 @@ export const createMoMoCheckout = createServerFn({ method: "POST" })
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           partnerCode,
-          partnerName: "Nến Hương An Nhiên",
+          partnerName: "Nến Hương Mộc",
           storeId: "AnNhienCandle",
           requestId,
           amount: validAmount,

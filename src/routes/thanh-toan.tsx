@@ -18,9 +18,9 @@ import { useAuth } from "@/hooks/useAuth";
 export const Route = createFileRoute("/thanh-toan")({
   head: () => ({
     meta: [
-      { title: "Đặt hàng — Nến Hương An Nhiên" },
+      { title: "Đặt hàng — Nến Hương Mộc" },
       { name: "description", content: "Nhập thông tin giao hàng và chọn phương thức thanh toán." },
-      { property: "og:title", content: "Đặt hàng — Nến Hương An Nhiên" },
+      { property: "og:title", content: "Đặt hàng — Nến Hương Mộc" },
       { property: "og:description", content: "Hoàn tất đơn hàng nến thơm." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

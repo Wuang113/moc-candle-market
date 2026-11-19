@@ -71,7 +71,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Nến Hương An Nhiên — Nến thơm thủ công Việt Nam" },
+      { title: "Nến Hương Mộc — Nến thơm thủ công Việt Nam" },
       { name: "description", content: "Cửa hàng nến thơm đậu nành thủ công, giao hàng toàn quốc." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -127,7 +127,7 @@ function Header() {
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4">
         <Link to="/" className="flex items-center gap-2">
           <img src={candleLogo} alt="" width={40} height={40} className="h-10 w-10 object-contain" />
-          <span className="font-display text-xl font-semibold">An Nhiên</span>
+          <span className="font-display text-xl font-semibold">Mộc</span>
         </Link>
         <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex">
           <Link to="/" className="hover:text-foreground" activeProps={{ className: "text-foreground" }} activeOptions={{ exact: true }}>
@@ -169,7 +169,7 @@ function Footer() {
     <footer className="mt-20 border-t bg-secondary/60">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm text-muted-foreground md:grid-cols-3">
         <div>
-          <p className="font-display text-lg text-foreground">Nến Hương An Nhiên</p>
+          <p className="font-display text-lg text-foreground">Nến Hương Mộc</p>
           <p className="mt-2">Nến thơm đậu nành thủ công, an toàn cho sức khỏe.</p>
         </div>
         <div>
