@@ -14,9 +14,9 @@ import {
   listOrderMessages,
   sendOrderMessage,
   listShipperOrders,
+  listCustomers,
 } from "@/lib/orders.functions";
 
-// KHUNG CHAT NỔI GÓC DƯỚI BÊN PHẢI: GỒM 2 TAB (CHAT ADMIN & CHAT GIAO HÀNG THEO ĐƠN)
 export function SupportChatWidget() {
   const { user, isAdmin, isShipper } = useAuth();
   const qc = useQueryClient();
@@ -24,6 +24,8 @@ export function SupportChatWidget() {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"support" | "delivery">("support");
   const [selectedOrderId, setSelectedOrderId] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -33,6 +35,34 @@ export function SupportChatWidget() {
   const fetchOrderMsgs = useServerFn(listOrderMessages);
   const sendOrderMsg = useServerFn(sendOrderMessage);
   const fetchShipperOrders = useServerFn(listShipperOrders);
+  const fetchCustomersFn = useServerFn(listCustomers);
+
+  // 0. Nếu là Admin: lấy danh sách khách hàng để chọn trò chuyện ngay tại góc dưới phải
+  const { data: rawCustomers } = useQuery({
+    queryKey: ["admin-customers"],
+    enabled: Boolean(user && isAdmin),
+    refetchInterval: 15000,
+    queryFn: () => fetchCustomersFn(),
+  });
+
+  const clientUsers = (Array.isArray(rawCustomers) ? rawCustomers : []).filter(
+    (c: any) => !(c?.roles ?? []).includes("admin"),
+  );
+  const filteredCustomers = clientUsers.filter((c: any) => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      String(c?.email ?? "").toLowerCase().includes(q) ||
+      String(c?.name ?? "").toLowerCase().includes(q)
+    );
+  });
+
+  const getCustomerId = (c: any) => String(c?.id || c?.user_id || "");
+  const activeCustomer =
+    clientUsers.find((c: any) => getCustomerId(c) === selectedCustomerId) ||
+    filteredCustomers[0] ||
+    null;
+  const activeCustomerId = getCustomerId(activeCustomer);
 
   // 1. Lấy danh sách đơn hàng đang hoạt động của Khách hàng
   const { data: myOrders = [] } = useQuery({
@@ -57,7 +87,7 @@ export function SupportChatWidget() {
     queryFn: () => fetchShipperOrders(),
   });
 
-  // Gộp các đơn hàng có thể nhắn tin giao nhận (đang đóng gói hoặc đang giao)
+  // Gộp các đơn hàng có thể nhắn tin giao nhận
   const activeDeliveryOrders = (() => {
     const map = new Map<
       string,
@@ -95,20 +125,23 @@ export function SupportChatWidget() {
   const currentOrder =
     activeDeliveryOrders.find((o) => o.id === selectedOrderId) || activeDeliveryOrders[0] || null;
 
-  // Nếu là Admin kiêm Shipper và có đơn đang giao, tự mở sẵn tab Giao hàng
-  useEffect(() => {
-    if (isShipper && hasDeliveryOrders && activeTab === "support" && isAdmin) {
-      setActiveTab("delivery");
-    }
-  }, [isShipper, hasDeliveryOrders, activeTab, isAdmin]);
-
-  // 3. Tin nhắn kênh Hỗ trợ Admin
-  const { data: supportMessages = [] } = useQuery({
-    queryKey: ["support-chat", user?.id],
-    enabled: Boolean(user && !isAdmin && activeTab === "support"),
+  // 3. Tin nhắn kênh Hỗ trợ Admin (cho cả Khách và Admin)
+  const targetSupportUserId = isAdmin ? activeCustomerId : user?.id || "";
+  const { data: rawSupportMessages } = useQuery({
+    queryKey: ["support-chat", targetSupportUserId],
+    enabled: Boolean(user && targetSupportUserId && activeTab === "support"),
     refetchInterval: open ? 3000 : 10000,
-    queryFn: () => fetchSupportMsgs({ data: {} }),
+    queryFn: () =>
+      fetchSupportMsgs({
+        data: isAdmin ? { targetUserId: activeCustomerId } : {},
+      }),
   });
+
+  const supportMessages = Array.isArray(rawSupportMessages)
+    ? rawSupportMessages
+    : Array.isArray((rawSupportMessages as any)?.messages)
+      ? (rawSupportMessages as any).messages
+      : [];
 
   // 4. Tin nhắn kênh Giao nhận theo đơn hàng
   const { data: orderMessages = [] } = useQuery({
@@ -118,9 +151,35 @@ export function SupportChatWidget() {
     queryFn: () => fetchOrderMsgs({ data: { orderId: currentOrder!.id } }),
   });
 
-  // Lắng nghe Realtime cho kênh Hỗ trợ Admin + phát âm thanh khi có tin nhắn mới
+  // Lắng nghe Realtime cho kênh Hỗ trợ Admin (cả phía Khách lẫn phía Admin)
   useEffect(() => {
-    if (!user || isAdmin) return;
+    if (!user) return;
+    if (isAdmin) {
+      const channel = supabase
+        .channel("widget-admin-support-global")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "messages" },
+          (payload: any) => {
+            if (
+              payload.new?.channel_type === "support" &&
+              payload.new?.sender_role === "customer"
+            ) {
+              playMessageSound();
+              toast.info(`Tin nhắn mới từ ${payload.new.sender_name || "Khách hàng"}`);
+            }
+            if (activeCustomerId) {
+              qc.invalidateQueries({ queryKey: ["support-chat", activeCustomerId] });
+            }
+          },
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+
     const channel = supabase
       .channel(`widget-support-${user.id}`)
       .on(
@@ -143,9 +202,9 @@ export function SupportChatWidget() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, isAdmin, qc]);
+  }, [user, isAdmin, activeCustomerId, qc]);
 
-  // Lắng nghe Realtime cho kênh Giao nhận đơn hàng + phát âm thanh khi có tin nhắn mới
+  // Lắng nghe Realtime cho kênh Giao nhận đơn hàng
   useEffect(() => {
     if (!user || !currentOrder?.id) return;
     const channel = supabase
@@ -178,17 +237,15 @@ export function SupportChatWidget() {
     if (open) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [displayedMessages.length, open, activeTab, currentOrder?.id]);
+  }, [displayedMessages.length, open, activeTab, currentOrder?.id, activeCustomerId]);
 
-  // Ẩn widget nếu chưa đăng nhập, hoặc là Admin không có đơn Shipper đang giao
   if (!user) return null;
-  if (isAdmin && !hasDeliveryOrders) return null;
 
   const displayName =
     user.user_metadata?.["full_name"] ||
     user.user_metadata?.["name"] ||
     user.email?.split("@")[0] ||
-    "Người dùng";
+    (isAdmin ? "Quản trị viên Mộc" : "Người dùng");
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -197,14 +254,26 @@ export function SupportChatWidget() {
 
     setSending(true);
     try {
-      if (activeTab === "support" && !isAdmin) {
-        await sendSupportMsg({
-          data: {
-            senderName: String(displayName),
-            content,
-          },
-        });
-        qc.invalidateQueries({ queryKey: ["support-chat", user?.id] });
+      if (activeTab === "support") {
+        if (isAdmin) {
+          if (!activeCustomerId) return;
+          await sendSupportMsg({
+            data: {
+              targetUserId: activeCustomerId,
+              senderName: String(displayName),
+              content,
+            },
+          });
+          qc.invalidateQueries({ queryKey: ["support-chat", activeCustomerId] });
+        } else {
+          await sendSupportMsg({
+            data: {
+              senderName: String(displayName),
+              content,
+            },
+          });
+          qc.invalidateQueries({ queryKey: ["support-chat", user?.id] });
+        }
       } else if (activeTab === "delivery" && currentOrder) {
         await sendOrderMsg({
           data: {
@@ -223,47 +292,45 @@ export function SupportChatWidget() {
     }
   }
 
-  const effectiveTab = isAdmin ? "delivery" : activeTab;
-
   return (
     <div className="fixed bottom-5 right-5 z-50">
       {!open ? (
-        <Button
-          onClick={() => {
-            if (isAdmin) setActiveTab("delivery");
-            setOpen(true);
-          }}
-          className="h-12 gap-2 rounded-full px-5 shadow-warm"
-        >
+        <Button onClick={() => setOpen(true)} className="h-12 gap-2 rounded-full px-5 shadow-warm">
           <MessageCircle className="h-5 w-5" />
           <span>
             {isAdmin
-              ? `Chat Giao Hàng (${activeDeliveryOrders.length})`
+              ? `Tin nhắn khách hàng (${clientUsers.length})`
               : hasDeliveryOrders
                 ? "Tin nhắn & Giao hàng"
                 : "Chat với Quản trị viên"}
           </span>
         </Button>
       ) : (
-        <div className="flex h-[460px] w-[350px] sm:w-[385px] flex-col overflow-hidden rounded-2xl border bg-card shadow-warm">
+        <div className="flex h-[480px] w-[350px] sm:w-[390px] flex-col overflow-hidden rounded-2xl border bg-card shadow-warm">
           {/* Header trên cùng */}
           <div className="bg-primary px-4 py-3 text-primary-foreground">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                {effectiveTab === "support" ? (
+                {activeTab === "support" ? (
                   <ShieldCheck className="h-5 w-5" />
                 ) : (
                   <Truck className="h-5 w-5" />
                 )}
                 <div>
                   <p className="text-sm font-semibold leading-tight">
-                    {effectiveTab === "support"
-                      ? "Hỗ trợ trực tuyến Mộc"
+                    {activeTab === "support"
+                      ? isAdmin
+                        ? "Hỗ trợ khách hàng Mộc"
+                        : "Hỗ trợ trực tuyến Mộc"
                       : "Trao đổi giao nhận đơn hàng"}
                   </p>
                   <p className="text-[11px] opacity-85">
-                    {effectiveTab === "support"
-                      ? "Nhắn tin trực tiếp với Quản trị viên"
+                    {activeTab === "support"
+                      ? isAdmin
+                        ? activeCustomer
+                          ? `${activeCustomer.name || activeCustomer.email}`
+                          : "Chọn khách hàng bên dưới"
+                        : "Nhắn tin trực tiếp với Quản trị viên"
                       : currentOrder
                         ? `${currentOrder.order_number} · ${currentOrder.partnerLabel}`
                         : "Chưa có đơn đang giao"}
@@ -281,24 +348,24 @@ export function SupportChatWidget() {
             </div>
 
             {/* Thanh chuyển đổi 2 kênh chat */}
-            {!isAdmin && (
+            {(!isAdmin || hasDeliveryOrders) && (
               <div className="mt-2.5 grid grid-cols-2 gap-1 rounded-xl bg-black/15 p-1 text-xs">
                 <button
                   type="button"
                   onClick={() => setActiveTab("support")}
                   className={`rounded-lg py-1.5 font-medium transition ${
-                    effectiveTab === "support"
+                    activeTab === "support"
                       ? "bg-background text-foreground shadow-sm"
                       : "text-primary-foreground/85 hover:text-white"
                   }`}
                 >
-                  Quản trị viên
+                  {isAdmin ? "Khách hàng" : "Quản trị viên"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab("delivery")}
                   className={`rounded-lg py-1.5 font-medium transition flex items-center justify-center gap-1 ${
-                    effectiveTab === "delivery"
+                    activeTab === "delivery"
                       ? "bg-background text-foreground shadow-sm"
                       : "text-primary-foreground/85 hover:text-white"
                   }`}
@@ -314,8 +381,35 @@ export function SupportChatWidget() {
             )}
           </div>
 
-          {/* Thanh chọn mã đơn hàng ở tab Giao hàng */}
-          {effectiveTab === "delivery" && (
+          {/* Thanh chọn khách hàng nếu là Admin đang ở tab Hỗ trợ */}
+          {activeTab === "support" && isAdmin && (
+            <div className="space-y-1.5 border-b bg-muted/40 px-3 py-2">
+              <Input
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                placeholder="Tìm tên hoặc email khách..."
+                className="h-7 text-xs bg-background"
+              />
+              <select
+                value={activeCustomerId}
+                onChange={(e) => setSelectedCustomerId(e.target.value)}
+                className="w-full rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium"
+              >
+                {filteredCustomers.length === 0 && <option value="">Không có khách hàng</option>}
+                {filteredCustomers.map((c: any, idx: number) => {
+                  const cId = getCustomerId(c);
+                  return (
+                    <option key={cId || idx} value={cId}>
+                      {c.name || c.email} ({c.email})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
+
+          {/* Thanh chọn mã đơn hàng nếu đang ở tab Giao hàng */}
+          {activeTab === "delivery" && (
             <div className="border-b bg-muted/40 px-3 py-2">
               {hasDeliveryOrders ? (
                 <select
@@ -339,19 +433,23 @@ export function SupportChatWidget() {
 
           {/* Khung hiển thị nội dung tin nhắn */}
           <div className="flex-1 space-y-2.5 overflow-y-auto bg-muted/30 p-3 text-sm">
-            {effectiveTab === "support" ? (
+            {activeTab === "support" ? (
               <>
                 {supportMessages.length === 0 && (
                   <div className="rounded-xl bg-background p-3 text-center text-xs text-muted-foreground border">
-                    Xin chào <b>{String(displayName)}</b>! Bạn cần tư vấn mùi hương hay hỗ trợ đơn hàng? Hãy nhắn tin cho Quản trị viên nhé.
+                    {isAdmin
+                      ? `Chưa có tin nhắn với ${activeCustomer?.name || activeCustomer?.email || "khách hàng này"}.`
+                      : `Xin chào ${String(displayName)}! Bạn cần tư vấn mùi hương hay hỗ trợ đơn hàng? Hãy nhắn tin cho Quản trị viên nhé.`}
                   </div>
                 )}
-                {supportMessages.map((m: any) => {
-                  const isMine = m.sender_role === "customer";
+                {supportMessages.map((m: any, i: number) => {
+                  const isMine = isAdmin
+                    ? m.sender_role === "admin"
+                    : m.sender_role === "customer";
                   return (
-                    <div key={m.id} className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+                    <div key={m.id || i} className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
                       <span className="mb-0.5 text-[10px] text-muted-foreground">
-                        {m.sender_role === "admin" ? "Quản trị viên" : m.sender_name}
+                        {m.sender_role === "admin" ? "Quản trị viên" : m.sender_name || "Khách hàng"}
                       </span>
                       <div
                         className={`max-w-[82%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed ${
@@ -363,10 +461,12 @@ export function SupportChatWidget() {
                         {m.content}
                       </div>
                       <span className="mt-0.5 text-[10px] text-muted-foreground">
-                        {new Date(m.created_at).toLocaleTimeString("vi-VN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {m.created_at
+                          ? new Date(m.created_at).toLocaleTimeString("vi-VN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : ""}
                       </span>
                     </div>
                   );
@@ -383,10 +483,10 @@ export function SupportChatWidget() {
                     Chưa có tin nhắn cho đơn <b>{currentOrder?.order_number}</b>. Hãy nhắn để hẹn giờ hoặc chỉ dẫn địa chỉ giao hàng!
                   </div>
                 ) : (
-                  orderMessages.map((m: any) => {
+                  orderMessages.map((m: any, i: number) => {
                     const isMine = m.sender_id === user.id;
                     return (
-                      <div key={m.id} className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+                      <div key={m.id || i} className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
                         <span className="mb-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
                           {m.sender_role === "shipper" ? (
                             <Truck className="h-2.5 w-2.5" />
@@ -424,10 +524,15 @@ export function SupportChatWidget() {
             <Input
               value={text}
               onChange={(e) => setText(e.target.value)}
-              disabled={effectiveTab === "delivery" && !hasDeliveryOrders}
+              disabled={
+                (activeTab === "delivery" && !hasDeliveryOrders) ||
+                (activeTab === "support" && isAdmin && !activeCustomerId)
+              }
               placeholder={
-                effectiveTab === "support"
-                  ? "Nhập tin nhắn gửi Quản trị viên..."
+                activeTab === "support"
+                  ? isAdmin
+                    ? `Trả lời ${activeCustomer?.name || "khách hàng"}...`
+                    : "Nhập tin nhắn gửi Quản trị viên..."
                   : hasDeliveryOrders
                     ? "Nhắn tin trao đổi giao nhận..."
                     : "Chưa có đơn hàng đang giao"
@@ -439,7 +544,12 @@ export function SupportChatWidget() {
               type="submit"
               size="icon"
               className="h-9 w-9 shrink-0"
-              disabled={sending || !text.trim() || (effectiveTab === "delivery" && !hasDeliveryOrders)}
+              disabled={
+                sending ||
+                !text.trim() ||
+                (activeTab === "delivery" && !hasDeliveryOrders) ||
+                (activeTab === "support" && isAdmin && !activeCustomerId)
+              }
             >
               <Send className="h-4 w-4" />
             </Button>
