@@ -161,12 +161,22 @@ export function SupportChatWidget() {
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "messages" },
           (payload: any) => {
-            if (
-              payload.new?.channel_type === "support" &&
-              payload.new?.sender_role === "customer"
-            ) {
+            const msg = payload.new;
+            if (msg?.channel_type === "support" && msg?.sender_role === "customer") {
               playMessageSound();
-              toast.info(`Tin nhắn mới từ ${payload.new.sender_name || "Khách hàng"}`);
+              toast.info(`Tin nhắn mới từ ${msg.sender_name || "Khách hàng"}`, {
+                description: "Bấm để mở khung chat và trả lời ngay",
+                action: {
+                  label: "Xem",
+                  onClick: () => {
+                    if (msg.customer_user_id) {
+                      setSelectedCustomerId(String(msg.customer_user_id));
+                    }
+                    setActiveTab("support");
+                    setOpen(true);
+                  },
+                },
+              });
             }
             if (activeCustomerId) {
               qc.invalidateQueries({ queryKey: ["support-chat", activeCustomerId] });
@@ -192,9 +202,19 @@ export function SupportChatWidget() {
           filter: `customer_user_id=eq.${user.id}`,
         },
         (payload: any) => {
-          if (payload.new?.sender_id && payload.new.sender_id !== user.id) {
+          const msg = payload.new;
+          if (msg?.sender_id && msg.sender_id !== user.id) {
             playMessageSound();
-            toast.info(`Tin nhắn mới từ ${payload.new.sender_name || "Quản trị viên"}`);
+            toast.info(`Tin nhắn mới từ ${msg.sender_name || "Quản trị viên"}`, {
+              description: "Bấm để mở khung chat",
+              action: {
+                label: "Xem",
+                onClick: () => {
+                  setActiveTab("support");
+                  setOpen(true);
+                },
+              },
+            });
           }
           qc.invalidateQueries({ queryKey: ["support-chat", user.id] });
         },
@@ -206,7 +226,7 @@ export function SupportChatWidget() {
     };
   }, [user, isAdmin, activeCustomerId, qc]);
 
-  // Lắng nghe Realtime cho kênh Giao nhận đơn hàng (cả Khách hàng & Shipper trên mọi đơn đang hoạt động)
+  // Lắng nghe Realtime cho kênh Giao nhận đơn hàng (cả Khách hàng & Shipper)
   const activeDeliveryIds = activeDeliveryOrders.map((o) => o.id).join(",");
 
   useEffect(() => {
@@ -233,6 +253,17 @@ export function SupportChatWidget() {
             const roleLabel = msg.sender_role === "shipper" ? "Shipper" : "Khách hàng";
             toast.info(
               `Tin nhắn mới từ ${msg.sender_name || roleLabel} (${matchedOrder.order_number})`,
+              {
+                description: "Bấm để mở khung chat giao nhận",
+                action: {
+                  label: "Xem",
+                  onClick: () => {
+                    setSelectedOrderId(msg.order_id);
+                    setActiveTab("delivery");
+                    setOpen(true);
+                  },
+                },
+              },
             );
           }
           qc.invalidateQueries({ queryKey: ["order-messages", msg.order_id] });
