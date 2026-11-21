@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatVND } from "@/lib/shopify";
+import { playMessageSound } from "@/lib/chat-sound";
 import {
   nextStatuses,
   PAYMENT_METHOD_LABEL,
@@ -746,8 +747,10 @@ function SupportInbox() {
     );
   });
 
-  const activeUserId = selectedUserId || filteredUsers[0]?.id || "";
-  const activeCustomer = clientUsers.find((c: any) => c.id === activeUserId);
+  const getCustomerId = (c: any) => String(c?.id || c?.user_id || "");
+  const activeUserId = selectedUserId || getCustomerId(filteredUsers[0]);
+  const activeCustomer =
+    clientUsers.find((c: any) => getCustomerId(c) === activeUserId) || filteredUsers[0] || null;
 
   const { data: messages = [] } = useQuery({
     queryKey: ["support-chat", activeUserId],
@@ -757,14 +760,22 @@ function SupportInbox() {
   });
 
   useEffect(() => {
-    if (!activeUserId) return;
     const channel = supabase
-      .channel(`admin-support-inbox-${activeUserId}`)
+      .channel("admin-support-inbox-global")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
-        () => {
-          qc.invalidateQueries({ queryKey: ["support-chat", activeUserId] });
+        (payload: any) => {
+          if (
+            payload.new?.channel_type === "support" &&
+            payload.new?.sender_role === "customer"
+          ) {
+            playMessageSound();
+            toast.info(`Tin nhắn mới từ ${payload.new.sender_name || "Khách hàng"}`);
+          }
+          if (activeUserId) {
+            qc.invalidateQueries({ queryKey: ["support-chat", activeUserId] });
+          }
         },
       )
       .subscribe();
@@ -780,7 +791,8 @@ function SupportInbox() {
   async function handleSendReply(e: React.FormEvent) {
     e.preventDefault();
     const content = reply.trim();
-    if (!content || !activeUserId) return;
+    const targetId = activeUserId || getCustomerId(activeCustomer);
+    if (!content || !targetId) return;
 
     const adminName =
       user?.user_metadata?.["full_name"] ||
@@ -791,13 +803,13 @@ function SupportInbox() {
     try {
       await sendMsgFn({
         data: {
-          targetUserId: activeUserId,
+          targetUserId: targetId,
           senderName: String(adminName),
           content,
         },
       });
       setReply("");
-      qc.invalidateQueries({ queryKey: ["support-chat", activeUserId] });
+      qc.invalidateQueries({ queryKey: ["support-chat", targetId] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Không thể gửi phản hồi");
     } finally {
@@ -823,13 +835,14 @@ function SupportInbox() {
               Không tìm thấy tài khoản khách hàng nào.
             </p>
           )}
-          {filteredUsers.map((c: any) => {
-            const isSelected = c.id === activeUserId;
+          {filteredUsers.map((c: any, idx: number) => {
+            const cId = getCustomerId(c);
+            const isSelected = cId !== "" && cId === activeUserId;
             return (
               <button
-                key={c.id}
+                key={cId || idx}
                 type="button"
-                onClick={() => setSelectedUserId(c.id)}
+                onClick={() => setSelectedUserId(cId)}
                 className={`flex w-full items-start gap-2.5 p-3.5 text-left transition ${
                   isSelected ? "bg-primary/10 border-l-4 border-primary" : "hover:bg-muted/50"
                 }`}
