@@ -180,6 +180,7 @@ export function SupportChatWidget() {
       };
     }
 
+    // Phía Khách hàng nhận tin nhắn từ Quản trị viên
     const channel = supabase
       .channel(`widget-support-${user.id}`)
       .on(
@@ -193,6 +194,7 @@ export function SupportChatWidget() {
         (payload: any) => {
           if (payload.new?.sender_id && payload.new.sender_id !== user.id) {
             playMessageSound();
+            toast.info(`Tin nhắn mới từ ${payload.new.sender_name || "Quản trị viên"}`);
           }
           qc.invalidateQueries({ queryKey: ["support-chat", user.id] });
         },
@@ -204,24 +206,36 @@ export function SupportChatWidget() {
     };
   }, [user, isAdmin, activeCustomerId, qc]);
 
-  // Lắng nghe Realtime cho kênh Giao nhận đơn hàng
+  // Lắng nghe Realtime cho kênh Giao nhận đơn hàng (cả Khách hàng & Shipper trên mọi đơn đang hoạt động)
+  const activeDeliveryIds = activeDeliveryOrders.map((o) => o.id).join(",");
+
   useEffect(() => {
-    if (!user || !currentOrder?.id) return;
+    if (!user || activeDeliveryOrders.length === 0) return;
+
+    const orderMap = new Map(activeDeliveryOrders.map((o) => [o.id, o]));
     const channel = supabase
-      .channel(`widget-order-${currentOrder.id}`)
+      .channel(`widget-delivery-global-${user.id}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `order_id=eq.${currentOrder.id}`,
         },
         (payload: any) => {
-          if (payload.new?.sender_id && payload.new.sender_id !== user.id) {
+          const msg = payload.new;
+          if (!msg || msg.channel_type !== "order" || !msg.order_id) return;
+          const matchedOrder = orderMap.get(msg.order_id);
+          if (!matchedOrder) return;
+
+          if (msg.sender_id && msg.sender_id !== user.id) {
             playMessageSound();
+            const roleLabel = msg.sender_role === "shipper" ? "Shipper" : "Khách hàng";
+            toast.info(
+              `Tin nhắn mới từ ${msg.sender_name || roleLabel} (${matchedOrder.order_number})`,
+            );
           }
-          qc.invalidateQueries({ queryKey: ["order-messages", currentOrder.id] });
+          qc.invalidateQueries({ queryKey: ["order-messages", msg.order_id] });
         },
       )
       .subscribe();
@@ -229,7 +243,7 @@ export function SupportChatWidget() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, currentOrder?.id, qc]);
+  }, [user, activeDeliveryIds, qc]);
 
   const displayedMessages = activeTab === "support" ? supportMessages : orderMessages;
 
