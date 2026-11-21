@@ -731,33 +731,48 @@ function SupportInbox() {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  const { data: customers = [] } = useQuery({
+  const { data: rawCustomers } = useQuery({
     queryKey: ["admin-customers"],
     queryFn: () => fetchCustomersFn(),
   });
 
+  const customers = Array.isArray(rawCustomers) ? rawCustomers : [];
+
   // Lọc danh sách các tài khoản không phải Admin
-  const clientUsers = customers.filter((c: any) => !(c.roles ?? []).includes("admin"));
+  const clientUsers = customers.filter((c: any) => !(c?.roles ?? []).includes("admin"));
   const filteredUsers = clientUsers.filter((c: any) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return (
-      String(c.email ?? "").toLowerCase().includes(q) ||
-      String(c.name ?? "").toLowerCase().includes(q)
+      String(c?.email ?? "").toLowerCase().includes(q) ||
+      String(c?.name ?? "").toLowerCase().includes(q)
     );
   });
 
   const getCustomerId = (c: any) => String(c?.id || c?.user_id || "");
-  const activeUserId = selectedUserId || getCustomerId(filteredUsers[0]);
   const activeCustomer =
-    clientUsers.find((c: any) => getCustomerId(c) === activeUserId) || filteredUsers[0] || null;
+    clientUsers.find((c: any) => getCustomerId(c) === selectedUserId) ||
+    filteredUsers[0] ||
+    null;
+  const activeUserId = getCustomerId(activeCustomer);
 
-  const { data: messages = [] } = useQuery({
+  const {
+    data: rawMessages,
+    isLoading: isLoadingMsgs,
+    error: msgsError,
+  } = useQuery({
     queryKey: ["support-chat", activeUserId],
     queryFn: () => fetchMsgsFn({ data: { targetUserId: activeUserId } }),
     enabled: Boolean(activeUserId),
     refetchInterval: 4000,
   });
+
+  // Đảm bảo messages luôn là mảng dù server trả về array hay object
+  const messages = Array.isArray(rawMessages)
+    ? rawMessages
+    : Array.isArray((rawMessages as any)?.messages)
+      ? (rawMessages as any).messages
+      : [];
 
   useEffect(() => {
     const channel = supabase
@@ -791,8 +806,7 @@ function SupportInbox() {
   async function handleSendReply(e: React.FormEvent) {
     e.preventDefault();
     const content = reply.trim();
-    const targetId = activeUserId || getCustomerId(activeCustomer);
-    if (!content || !targetId) return;
+    if (!content || !activeUserId) return;
 
     const adminName =
       user?.user_metadata?.["full_name"] ||
@@ -803,13 +817,13 @@ function SupportInbox() {
     try {
       await sendMsgFn({
         data: {
-          targetUserId: targetId,
+          targetUserId: activeUserId,
           senderName: String(adminName),
           content,
         },
       });
       setReply("");
-      qc.invalidateQueries({ queryKey: ["support-chat", targetId] });
+      qc.invalidateQueries({ queryKey: ["support-chat", activeUserId] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Không thể gửi phản hồi");
     } finally {
@@ -820,7 +834,7 @@ function SupportInbox() {
   return (
     <div className="mt-4 grid overflow-hidden rounded-2xl border bg-card shadow-soft md:grid-cols-[300px_1fr] h-[560px]">
       {/* Cột trái: Danh sách khách hàng */}
-      <div className="flex flex-col border-r bg-muted/20">
+      <div className="flex flex-col border-r bg-muted/20 overflow-hidden">
         <div className="border-b p-3">
           <Input
             value={search}
@@ -854,7 +868,7 @@ function SupportInbox() {
                   <p className="truncate text-sm font-semibold">{c.name || c.email}</p>
                   <p className="truncate text-xs text-muted-foreground">{c.email}</p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {c.orderCount} đơn · {formatVND(c.spent)}
+                    {c.orderCount ?? 0} đơn · {formatVND(c.spent ?? 0)}
                   </p>
                 </div>
               </button>
@@ -864,14 +878,14 @@ function SupportInbox() {
       </div>
 
       {/* Cột phải: Khung hội thoại trực tiếp */}
-      <div className="flex flex-col bg-background">
+      <div className="flex flex-col bg-background overflow-hidden">
         {activeCustomer ? (
           <>
             <div className="flex items-center justify-between border-b bg-card px-4 py-3">
               <div>
                 <p className="font-semibold text-sm">{activeCustomer.name || activeCustomer.email}</p>
                 <p className="text-xs text-muted-foreground">
-                  {activeCustomer.email} · {activeCustomer.orderCount} đơn hàng đã đặt
+                  {activeCustomer.email} · {activeCustomer.orderCount ?? 0} đơn hàng đã đặt
                 </p>
               </div>
               <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
@@ -880,24 +894,36 @@ function SupportInbox() {
             </div>
 
             <div className="flex-1 space-y-3 overflow-y-auto p-4">
-              {messages.length === 0 && (
+              {isLoadingMsgs && (
+                <p className="py-16 text-center text-xs text-muted-foreground">
+                  Đang tải lịch sử tin nhắn...
+                </p>
+              )}
+              {msgsError && (
+                <p className="py-10 text-center text-xs text-destructive">
+                  Lỗi tải tin nhắn: {msgsError instanceof Error ? msgsError.message : "Không thể kết nối máy chủ"}
+                </p>
+              )}
+              {!isLoadingMsgs && !msgsError && messages.length === 0 && (
                 <p className="py-16 text-center text-xs text-muted-foreground">
                   Chưa có tin nhắn nào với khách hàng này. Hãy gửi lời chào để bắt đầu hỗ trợ!
                 </p>
               )}
-              {messages.map((m: any) => {
-                const isAdminMsg = m.sender_role === "admin";
+              {messages.map((m: any, i: number) => {
+                const isAdminMsg = m?.sender_role === "admin";
                 return (
                   <div
-                    key={m.id}
+                    key={m?.id || i}
                     className={`flex flex-col ${isAdminMsg ? "items-end" : "items-start"}`}
                   >
                     <span className="mb-1 px-1 text-[11px] text-muted-foreground">
-                      {isAdminMsg ? "Quản trị viên" : m.sender_name} ·{" "}
-                      {new Date(m.created_at).toLocaleTimeString("vi-VN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {isAdminMsg ? "Quản trị viên" : m?.sender_name || "Khách hàng"} ·{" "}
+                      {m?.created_at
+                        ? new Date(m.created_at).toLocaleTimeString("vi-VN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : ""}
                     </span>
                     <div
                       className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm leading-relaxed ${
@@ -906,7 +932,7 @@ function SupportInbox() {
                           : "bg-secondary text-secondary-foreground rounded-bl-sm"
                       }`}
                     >
-                      {m.content}
+                      {m?.content}
                     </div>
                   </div>
                 );
@@ -922,7 +948,7 @@ function SupportInbox() {
                 className="flex-1"
                 maxLength={1000}
               />
-              <Button type="submit" disabled={sending} className="gap-1.5">
+              <Button type="submit" disabled={sending || !reply.trim()} className="gap-1.5">
                 <Send className="h-4 w-4" /> Gửi phản hồi
               </Button>
             </form>
